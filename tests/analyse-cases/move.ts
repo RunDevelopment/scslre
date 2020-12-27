@@ -7,6 +7,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Move",
 				char: /#/i,
+				expo: false,
 				desc: String.raw`
 /#.*$/
   ^~`,
@@ -19,6 +20,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Move",
 				char: /[0-9A-Z_b-z]/,
+				expo: false,
 				desc: String.raw`
 /\w+a/
  ^~~`,

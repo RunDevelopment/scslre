@@ -7,6 +7,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				fixed: /^a*(?:b+a*)?$/,
 				desc: String.raw`
 /^a*b*a*$/
@@ -21,6 +22,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /\d/i,
+				expo: false,
 				fixed: /\b\w+$/,
 				desc: String.raw`
 /\b\w+\d*$/
@@ -35,6 +37,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /\d/i,
+				expo: false,
 				fixed: /\b(?:\d(?:_\d)?)+(?:\.(?:\d(?:_\d)?)*)?$/,
 				desc: String.raw`
 /\b(?:\d(?:_\d)?)+\.?(?:\d(?:_\d)?)*$/
@@ -49,6 +52,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				desc: String.raw`
 /^(?:a+ba+){0,2}$/
      ^~[end]
@@ -62,6 +66,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				desc: String.raw`
 /^(?:ba+)*a*$/
       ^~[start]
@@ -75,6 +80,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /\d/i,
+				expo: false,
 				fixed: /^\b(?:\d+(?:[._]\d+)?|[._]\d+)(?:e[-+]?\d+)?$/i,
 				desc: String.raw`
 /^\b\d*[._]?\d+(?:e[-+]?\d+)?$/i
@@ -89,6 +95,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /[0-9A-F]/i,
+				expo: false,
 				fixed: /^0x(?:[\da-f]*\.)?[\da-fp-]+$/i,
 				desc: String.raw`
 /^0x[\da-f]*\.?[\da-fp-]+$/i
@@ -103,6 +110,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				fixed: /^(?:[ax]*b+[ay]*|[ax]*(?:y[ay]*)?)$/,
 				desc: String.raw`
 /^[ax]*b*[ay]*$/
@@ -117,6 +125,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				fixed: /^(?:[ax]+b+[ay]+|[ax]+(?:y[ay]*|a))$/,
 				desc: String.raw`
 /^[ax]+b*[ay]+$/
@@ -131,6 +140,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				fixed: /^(?:a*x)*(?:y[az]*|a+(?:[yz][az]*)?)$/,
 				desc: String.raw`
 /^[ax]*[ay][az]*$/
@@ -145,6 +155,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				fixed: /^[ax](?:a*x)*(?:(?:y[az]|a(?:z|y[az]))[az]*|a{2,}(?:(?:z|y[az])[az]*)?)$/,
 				desc: String.raw`
 /^[ax]+[ay][az]+$/
@@ -159,6 +170,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /[a-z]/,
+				expo: false,
 				fixed: /^[0-9A-Z_]*[a-z]\w*$/,
 				desc: String.raw`
 /^\w*[a-z]\w*$/
@@ -173,6 +185,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: true,
 				desc: String.raw`
 /^(?:a|ba+)+$/
   ^~~~~~~~~~[end]
@@ -186,6 +199,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: true,
 				desc: String.raw`
 /^(?:a|a+b)+$/
   ^~~~~~~~~~[start]
@@ -199,6 +213,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				desc: String.raw`
 /^a+(?<!ba*)/m
   ^~[start]

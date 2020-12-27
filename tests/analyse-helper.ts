@@ -7,9 +7,10 @@ const DEBUG = true;
 
 export interface ReportDesc {
 	type: Report["type"];
-	desc: string;
-	fixed?: Literal;
+	expo: boolean;
 	char: Literal;
+	fixed?: Literal;
+	desc: string;
 }
 export interface TestCase {
 	literal: Literal;
@@ -71,6 +72,7 @@ function toReportDesc(result: AnalysisResult, r: Report): ReportDesc {
 			return {
 				type: r.type,
 				char: r.character.literal,
+				expo: r.exponential,
 				fixed: r.fix?.(),
 				desc: underLine(
 					literalToString(result.literal),
@@ -86,6 +88,7 @@ function toReportDesc(result: AnalysisResult, r: Report): ReportDesc {
 			return {
 				type: r.type,
 				char: r.character.literal,
+				expo: r.exponential,
 				fixed: r.fix?.(),
 				desc: underLine(literalToString(result.literal), [r.quant], offset),
 			};
@@ -94,6 +97,7 @@ function toReportDesc(result: AnalysisResult, r: Report): ReportDesc {
 			return {
 				type: r.type,
 				char: r.character.literal,
+				expo: r.exponential,
 				fixed: r.fix?.(),
 				desc: underLine(
 					literalToString(result.literal),
@@ -115,6 +119,7 @@ function printReportDesc(r: ReportDesc): string {
 
 	lines.push(`type: ${JSON.stringify(r.type)},`);
 	lines.push(`char: ${literalToString(r.char)},`);
+	lines.push(`expo: ${JSON.stringify(r.expo)},`);
 	if (r.fixed) {
 		lines.push(`fixed: ${literalToString(r.fixed)},`);
 	}

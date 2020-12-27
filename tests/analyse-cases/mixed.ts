@@ -7,6 +7,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				desc: String.raw`
 /^(?:a+\w?a+){0,2}$/
      ^~[end]
@@ -15,6 +16,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Trade",
 				char: /a/,
+				expo: false,
 				desc: String.raw`
 /^(?:a+\w?a+){0,2}$/
      ^~[start]
@@ -23,6 +25,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Self",
 				char: /a/,
+				expo: false,
 				desc: String.raw`
 /^(?:a+\w?a+){0,2}$/
   ^~~~~~~~~~~~~~~~[parent]
@@ -31,6 +34,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Self",
 				char: /a/,
+				expo: false,
 				desc: String.raw`
 /^(?:a+\w?a+){0,2}$/
   ^~~~~~~~~~~~~~~~[parent]

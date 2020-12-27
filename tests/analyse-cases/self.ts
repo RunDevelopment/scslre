@@ -7,6 +7,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Self",
 				char: /c/,
+				expo: true,
 				fixed: /^(?:a|b|c)+$/,
 				desc: String.raw`
 /^(?:a|b|c+)+$/
@@ -21,6 +22,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Self",
 				char: /c/,
+				expo: true,
 				fixed: /^(?:a|b|c)*$/,
 				desc: String.raw`
 /^(?:a|b|c+)*$/
@@ -35,6 +37,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Self",
 				char: /c/,
+				expo: true,
 				fixed: /^(?:a|b|c)*$/,
 				desc: String.raw`
 /^(?:a|b|c*)*$/
@@ -49,6 +52,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Self",
 				char: /c/,
+				expo: true,
 				fixed: /^(?:a|b|c?)+$/,
 				desc: String.raw`
 /^(?:a|b|c*)+$/
@@ -63,6 +67,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Self",
 				char: /a/,
+				expo: false,
 				fixed: /^a*$/,
 				desc: String.raw`
 /^(?:a+){0,2}$/
@@ -77,6 +82,7 @@ export const cases: TestCase[] = [
 			{
 				type: "Self",
 				char: /a/,
+				expo: true,
 				fixed: /^a{3,}$/,
 				desc: String.raw`
 /^(?:a+){3,}$/
