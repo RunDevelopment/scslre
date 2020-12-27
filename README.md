@@ -16,7 +16,7 @@ This library is not intended as a full static analysis to guard against super-li
 
 This library exports only a single function, `analyse`, which takes a RegExp literal and returns a list of reports that show the quantifiers causing super-linear worst-case time complexity.
 
-For more information on the exact inputs and outputs of the function, see the documentation.
+For more information on the exact inputs and outputs of the function, see [the documentation](https://rundevelopment.github.io/scslre/).
 
 
 ## Limitations
