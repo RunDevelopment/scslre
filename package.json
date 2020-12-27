@@ -52,7 +52,7 @@
   },
   "dependencies": {
     "refa": "^0.6.0",
-    "regexp": "^1.0.0"
+    "regexpp": "^3.1.0"
   },
   "files": [
     "index.js",
