@@ -1,16 +1,17 @@
 {
   "name": "scslre",
   "version": "0.1.0",
-  "description": "A library that finds JS RegExp with super-linear worst-case time complexity by searching for polynomial backtracking.",
+  "description": "A library to find JS RegExp with super-linear worst-case time complexity for attack strings that repeat a single character.",
   "main": "index",
   "scripts": {
     "check": "npm run lint && npx tsc --noEmit && cd tests && npx tsc --noEmit",
     "lint": "npx eslint --ignore-path .gitignore **/*.ts",
     "test": "cd tests && mocha -r ts-node/register '**/*.ts'",
     "build": "npx rimraf ./index.* .out/** && npx tsc && rollup -c && npm run build:dts && npm run build:docs",
-    "build:dts": "dts-bundle --main ./.out/index.d.ts --name polynomial-regexp --out ../index.d.ts",
+    "build:dts": "dts-bundle --main ./.out/index.d.ts --name scslre --out ../index.d.ts",
     "build:docs": "typedoc",
     "coverage": "npx nyc --reporter=html --reporter=text npm run test",
+    "update-docs-branch": "git checkout docs && git merge master && npm run build:docs && git add * && git commit -m \"Task: Updated docs\" && git push && git checkout master",
     "prepublishOnly": "npm run build"
   },
   "keywords": [
@@ -21,10 +22,10 @@
     "exponential"
   ],
   "author": "Michael Schmidt",
-  "homepage": "https://github.com/RunDevelopment/polynomial-regexp#readme",
+  "homepage": "https://github.com/RunDevelopment/scslre#readme",
   "repository": {
     "type": "git",
-    "url": "https://github.com/RunDevelopment/polynomial-regexp.git"
+    "url": "https://github.com/RunDevelopment/scslre.git"
   },
   "license": "MIT",
   "devDependencies": {
