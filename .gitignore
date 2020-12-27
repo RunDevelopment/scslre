@@ -1,0 +1,10 @@
+node_modules/
+.out/
+.vscode/
+/**/tempCodeRunnerFile.*
+.nyc_output/
+coverage/
+/index.js
+/index.mjs
+/index.d.ts
+docs/

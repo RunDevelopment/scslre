@@ -1,0 +1,553 @@
+import { CharSet, Words } from "refa";
+import { AST, RegExpParser, visitRegExpAST } from "regexpp";
+import {
+	allCharSet,
+	assertConsumedRepeatedChar,
+	canReachChild,
+	concatConsumedRepeatedChars,
+	ConsumedRepeatedChar,
+	emptyCharSet,
+	FollowOperations,
+	followPaths,
+	getCommonAncestor,
+	getConsumedRepeatedChar,
+	hasSomeAncestor,
+	isStared,
+	unionConsumedRepeatedChars,
+} from "./ast-util";
+import { fixSelf } from "./fix/self";
+import { fixTrade } from "./fix/trade";
+import { assertNever, cachedFn, charToLiteral } from "./util";
+
+export interface AnalysisResult {
+	/**
+	 * The parse AST of the analysed literal.
+	 */
+	parsed: ParsedLiteral;
+	/**
+	 * The analysed literal.
+	 */
+	literal: Literal;
+	/**
+	 * A list of all reports found under the constraints of the given analysis options.
+	 */
+	reports: Report[];
+}
+
+export interface ReportBase {
+	type: Report["type"];
+	/**
+	 * The character to be repeated in order to create an input for which the analysed literal will have super-linear
+	 * runtime behavior.
+	 */
+	character: {
+		/**
+		 * A non-empty set of characters that can be repeated to cause super-linear runtime.
+		 *
+		 * CharSet is a class from the [refa](https://github.com/RunDevelopment/refa) library.
+		 */
+		set: CharSet;
+		/**
+		 * A single character that can be repeated to cause super-linear runtime.
+		 *
+		 * The implementation is allowed to pick any character in `set` but makes a best effort to pick a
+		 * "humanly readable" character.
+		 */
+		pick: string;
+		/**
+		 * A literal that represents `set`.
+		 *
+		 * E.g. if `set` only contained the character "a" (lower case A), then the literal may be `/a/`.
+		 */
+		literal: Literal;
+	};
+	/**
+	 * Returns a new literal with this cause of super-linear runtime being fixed. If the cause of this report could not
+	 * be automatically fixed, `undefined` will be returned.
+	 *
+	 * A fixed literal is guaranteed to behave exactly the same as the analysed literal.
+	 */
+	fix(): Literal | undefined;
+	/**
+	 * Whether the polynomial backtracking of this report causes exponential backtracking.
+	 */
+	exponential: boolean;
+}
+/**
+ * This report indicates super-linear runtime caused by polynomial backtracking between two distinct quantifiers.
+ *
+ * ### Examples
+ *
+ * `/a+a+/`, `/\d*\w+/`, `/a*(?:a{2}d?|cd?)b?a+/`, `/(?:a+ba+){2}/`, `(?:a|ba+)+`
+ *
+ * ### Description
+ *
+ * This type of super-linear runtime is caused by the polynomial backtracking between two unbounded quantifiers.
+ *
+ * #### Start and end quantifiers
+ *
+ * While the start and end quantifiers are guaranteed to be distinct unbounded quantifiers, one may be parent
+ * (or ancestor) of the other (e.g. `/(?:a|ba+)+/`). The matching direction of the quantifiers may also be different
+ * (e.g. `/a+(?<!a*b)/`).
+ *
+ * ### Notes
+ *
+ * This type is called "trade" because polynomial backtracking between two quantifiers looks like the two quantifiers
+ * are exchanging characters, a trade of sorts.
+ */
+export interface TradeReport extends ReportBase {
+	type: "Trade";
+	startQuant: AST.Quantifier;
+	endQuant: AST.Quantifier;
+}
+/**
+ * This report indicates super-linear runtime cause by polynomial backtracking of a quantifier with itself.
+ *
+ * ### Examples
+ *
+ * `(?:a+){2}`, `(?:a+)+`
+ *
+ * ### Description
+ *
+ * This type of super-linear runtime is the special case of the trade type ([[`TradeReport`]]) where a quantifier trades characters with
+ * itself. As this requires some form of repetition of the quantifier, the self quantifier is always nested within a
+ * parent quantifier. The maximum of the parent quantifier determines the degree of polynomial backtracking (e.g.
+ * `/(a+){0,3}/` backtracks in _O(n^3)_ and `/(a+)+/` backtracks in _O(2^n)_).
+ *
+ * ### Fixing
+ *
+ * To fix these reports, quantifier must be prevent from reaching itself. This can be accomplished by e.g. removing the
+ * quantifier (e.g. `/(?:a+)+/` => `/(?:a)+/`), using assertions (e.g. `/(a+|b){0,3}/` => `/(a+(?!a)|b){0,3}/`), or
+ * rewriting the affected parts of the pattern. Reports of simple cases usually have a fix for you.
+ */
+export interface SelfReport extends ReportBase {
+	type: "Self";
+	/**
+	 * An unbounded quantifier that can reach itself.
+	 */
+	quant: AST.Quantifier;
+	/**
+	 * A parent quantifier of [[`quant`]].
+	 *
+	 * The maximum of this quantifier is at least 2.
+	 *
+	 * This is guaranteed to be not the same quantifier as [[`quant`]].
+	 */
+	parentQuant: AST.Quantifier;
+}
+/**
+ * This report indicates super-linear runtime cause by the matching algorithm moving the regexes across the input
+ * string.
+ *
+ * ### Examples
+ *
+ * `/a+b/`
+ *
+ * ### Description
+ *
+ * This type of super-linear runtime is not caused by backtracking but by the matching algorithm itself. While the
+ * regex engine will try to optimize as much as possible, in some cases, it will be forced to match a pattern against
+ * every suffix of the given input string according the
+ * [ECMAScript specification](https://tc39.es/ecma262/#sec-regexpbuiltinexec). Because there are _n_ many suffixes for
+ * a rejecting input string with length _n_, the total runtime will be the time it takes to reject every suffix times
+ * _n_. For non-finite languages, even a DFA (that guarantees _O(n)_ __for every suffix__) might have a total worst-case
+ * time complexity of _O(n^2)_.
+ *
+ * ### Fixing
+ *
+ * This type of super-linear runtime is the hardest to fix (if at all possible) because the fixed regex has to reject
+ * all suffixes with an average worst-case time complexity of _O(1)_.
+ *
+ * ### Notes
+ *
+ * Literals with the
+ * [sticky flag](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/RegExp/sticky)
+ * (e.g. `/a+b/y`) and anchored literals (e.g. `/^a+b/` and `/\ba+b/` but not `/^\s+b/m` and `/\Ba+b/`) are immune to
+ * this type of super-linear runtime.
+ *
+ * This type can never cause exponential backtracking.
+ */
+export interface MoveReport extends ReportBase {
+	type: "Move";
+	/**
+	 * The unbounded quantifier that caused this report.
+	 */
+	quant: AST.Quantifier;
+	/**
+	 * This type can never cause exponential backtracking.
+	 */
+	exponential: false;
+}
+export type Report = TradeReport | MoveReport | SelfReport;
+
+/**
+ * A light-weight representation of JS RegExp literal.
+ *
+ * Only the `source` and `flags` properties have to be given. `source` and `flags` are required to be syntactically
+ * valid.
+ *
+ * Literals are only guaranteed to be compatible with the `RegExp` constructor. The `source` may contain line breaks or
+ * unescaped `/` characters. To convert a literal to a valid RegExp literal, use:
+ *
+ * ```js
+ * RegExp(literal.source, literal.flags).toString()
+ * ```
+ *
+ * _Note:_ A [bug](https://bugs.chromium.org/p/v8/issues/detail?id=9618) in v8's `RegExp.properties.toString`
+ * implementation caused some line breaks to not be escaped in older versions of NodeJS. You can use
+ * [this workaround](https://github.com/terser/terser/pull/425/files#diff-9aa82f0ed674e050695a7422b1cd56d43ce47e6953688a16a003bf49c3481622R216)
+ * to correct invalid RegExp literals.
+ */
+export interface Literal {
+	source: string;
+	flags: string;
+}
+/**
+ * A representation of a parsed `RegExp` instance.
+ *
+ * This library uses [regexpp](https://github.com/mysticatea/regexpp) to parse JS RegExps. For more information on the
+ * regexpp AST format, see [the definition](https://github.com/mysticatea/regexpp/blob/master/src/ast.ts) or see it live
+ * in action on [astexplorer.net](https://astexplorer.net/#/gist/3b0c6dc514ab66df13b87c441a653a1a/latest).
+ */
+export interface ParsedLiteral {
+	pattern: AST.Pattern;
+	flags: AST.Flags;
+}
+
+export interface AnalysisOptions {
+	/**
+	 * The maximum number of reports to be returned.
+	 *
+	 * @default Infinity
+	 */
+	maxReports?: number;
+	/**
+	 * A record of allowed report types. All reports of a type that is mapped to `false` will be omitted.
+	 *
+	 * By default, all report types are allowed.
+	 */
+	reportTypes?: Partial<Record<Report["type"], boolean>>;
+}
+
+const NO_FIX: Report["fix"] = () => undefined;
+
+/**
+ * Analyses the given (parsed or unparsed) RegExp literal for causes of super-linear runtime complexity.
+ *
+ * If the given (unparsed) literal is not a syntactically valid JS RegExp, a `SyntaxError` will be thrown.
+ *
+ * @param input A literal or parsed literal.
+ * @param options An optional record of options.
+ */
+export function analyse(
+	input: Readonly<Literal> | Readonly<ParsedLiteral>,
+	options?: Readonly<AnalysisOptions>
+): AnalysisResult {
+	const { pattern, flags } = parse(input);
+	const result: AnalysisResult = {
+		parsed: { pattern, flags },
+		literal: { source: pattern.raw, flags: flags.raw },
+		reports: [],
+	};
+
+	options = options ?? {};
+	const maxReports = options.maxReports ?? Infinity;
+	if (maxReports <= 0) {
+		return result;
+	}
+	const reportTypes = options.reportTypes ?? {};
+
+	function addReport(report: Report): void {
+		const allowedType = reportTypes[report.type] ?? true;
+		if (result.reports.length < maxReports && allowedType) {
+			addFix(result.parsed, report);
+			result.reports.push(report);
+		}
+	}
+
+	const getCRC = cachedFn((element: AST.Element) => getConsumedRepeatedChar(element, flags));
+
+	const sharedOperations: FollowOperations<ConsumedRepeatedChar> = {
+		fork: s => s,
+		join: s => unionConsumedRepeatedChars(s, flags),
+
+		continueAfter(_, state: ConsumedRepeatedChar): boolean {
+			return !(state.assert.isEmpty && state.consume.isEmpty) && result.reports.length < maxReports;
+		},
+		continueInto(_, state: ConsumedRepeatedChar): boolean {
+			return !(state.assert.isEmpty && state.consume.isEmpty) && result.reports.length < maxReports;
+		},
+
+		leave(element, state: ConsumedRepeatedChar): ConsumedRepeatedChar {
+			switch (element.type) {
+				case "Assertion":
+				case "Backreference":
+				case "Character":
+				case "CharacterClass":
+				case "CharacterSet":
+					return concatConsumedRepeatedChars([state, getCRC(element)], flags);
+
+				case "CapturingGroup":
+				case "Group":
+				case "Quantifier":
+					return state;
+
+				default:
+					assertNever(element);
+			}
+		},
+	};
+
+	function getCRCAfterElement(after: AST.Element): ConsumedRepeatedChar {
+		return followPaths<ConsumedRepeatedChar>(
+			after,
+			"next",
+			{ consume: emptyCharSet(flags), assert: allCharSet(flags) },
+			sharedOperations
+		);
+	}
+
+	const selfReports = new Map<AST.Quantifier, Set<AST.Quantifier>>();
+	const tradeReports = new Map<AST.Quantifier, Set<AST.Quantifier>>();
+	function alreadyReported(
+		reports: Map<AST.Quantifier, Set<AST.Quantifier>>,
+		a: AST.Quantifier,
+		b: AST.Quantifier
+	): boolean {
+		let value = reports.get(a);
+		if (value === undefined) {
+			value = new Set();
+			reports.set(a, value);
+		}
+		if (!value.has(b)) {
+			value.add(b);
+			return false;
+		} else {
+			return true;
+		}
+	}
+
+	visitRegExpAST(pattern, {
+		onQuantifierLeave(node) {
+			if (node.max !== Infinity) {
+				return;
+			}
+			if (result.reports.length >= maxReports) {
+				return;
+			}
+
+			const startChar = getCRC(node.element);
+			if (startChar.consume.isEmpty) {
+				return;
+			}
+
+			function checkQuantifier(element: AST.Quantifier, state: ConsumedRepeatedChar): void {
+				if (element.max !== Infinity) {
+					return;
+				}
+
+				const endChar = getCRC(element);
+				let intersection = endChar.consume.intersect(state.consume);
+				if (intersection.isEmpty) {
+					return;
+				}
+
+				// remove all characters that are an accepting suffix if repeated
+				const crcAfter = assertConsumedRepeatedChar(getCRCAfterElement(element)).assert;
+				intersection = intersection.without(crcAfter);
+				if (intersection.isEmpty) {
+					return;
+				}
+
+				function canReachFromBothDirections(parent: AST.Quantifier, child: AST.Quantifier): boolean {
+					return (
+						canReachChild(parent, child, intersection, "ltr", flags) &&
+						canReachChild(parent, child, intersection, "rtl", flags)
+					);
+				}
+
+				let quant: AST.Quantifier | undefined;
+				let parent: AST.Quantifier | undefined;
+				if (node === element) {
+					quant = node;
+					parent = getParentQuant(node);
+				} else if (hasSomeAncestor(node, a => a === element)) {
+					if (canReachFromBothDirections(element, node)) {
+						quant = node;
+						parent = element;
+					}
+				} else if (hasSomeAncestor(element, a => a === node)) {
+					if (canReachFromBothDirections(node, element)) {
+						quant = element;
+						parent = node;
+					}
+				}
+
+				if (quant && parent) {
+					if (!alreadyReported(selfReports, quant, parent)) {
+						addReport({
+							type: "Self",
+							quant,
+							parentQuant: parent,
+							character: toReportCharacter(intersection),
+							fix: NO_FIX,
+							exponential: isStared(parent),
+						});
+					}
+				} else {
+					if (!alreadyReported(tradeReports, node, element)) {
+						addReport({
+							type: "Trade",
+							startQuant: node,
+							endQuant: element,
+							character: toReportCharacter(intersection),
+							fix: NO_FIX,
+							exponential: isStared(getCommonAncestor(node, element)),
+						});
+					}
+				}
+			}
+
+			followPaths<ConsumedRepeatedChar>(node, "next", startChar, {
+				...sharedOperations,
+
+				enter(element, state: ConsumedRepeatedChar): ConsumedRepeatedChar {
+					if (element.type === "Quantifier") {
+						checkQuantifier(element, state);
+					}
+					return state;
+				},
+			});
+
+			// this searches specifically for quantifiers inside the current one
+			followPaths<ConsumedRepeatedChar>(node, "enter", startChar, {
+				...sharedOperations,
+
+				enter(element, state: ConsumedRepeatedChar): ConsumedRepeatedChar {
+					if (element !== node && element.type === "Quantifier") {
+						checkQuantifier(element, state);
+					}
+					return state;
+				},
+
+				continueAfter(element, state, d) {
+					return sharedOperations.continueAfter!(element, state, d) && element !== node;
+				},
+			});
+		},
+	});
+
+	if (!flags.sticky && result.reports.length < maxReports && reportTypes["Move"] !== false) {
+		// move
+
+		// eslint-disable-next-line no-inner-declarations
+		function checkMoveQuantifier(element: AST.Quantifier, state: ConsumedRepeatedChar): void {
+			if (element.max !== Infinity) {
+				return;
+			}
+
+			const endChar = getCRC(element);
+			let intersection = endChar.consume.intersect(state.consume);
+			if (intersection.isEmpty) {
+				return;
+			}
+
+			// remove all characters that are an accepting suffix if repeated
+			const crcAfter = assertConsumedRepeatedChar(getCRCAfterElement(element)).assert;
+			intersection = intersection.without(crcAfter);
+			if (intersection.isEmpty) {
+				return;
+			}
+
+			// found it
+			addReport({
+				type: "Move",
+				quant: element,
+				character: toReportCharacter(intersection),
+				fix: NO_FIX,
+				exponential: false,
+			});
+		}
+
+		const startChar: ConsumedRepeatedChar = {
+			consume: allCharSet(flags),
+			assert: emptyCharSet(flags),
+		};
+
+		for (const alt of pattern.alternatives) {
+			if (alt.elements.length === 0) {
+				continue;
+			}
+			followPaths<ConsumedRepeatedChar>(alt.elements[0], "enter", startChar, {
+				...sharedOperations,
+
+				enter(element, state: ConsumedRepeatedChar): ConsumedRepeatedChar {
+					if (element.type === "Quantifier") {
+						checkMoveQuantifier(element, state);
+					}
+
+					return state;
+				},
+			});
+		}
+	}
+
+	return result;
+}
+
+function addFix(literal: Readonly<ParsedLiteral>, report: Report): void {
+	switch (report.type) {
+		case "Move": {
+			// We cannot provide fixes because of `lastIndex`.
+			break;
+		}
+		case "Self": {
+			report.fix = () => {
+				const fix = fixSelf(literal, report);
+				return fix ? fix : undefined;
+			};
+			break;
+		}
+		case "Trade": {
+			report.fix = () => {
+				const fix = fixTrade(literal, report);
+				return fix ? fix : undefined;
+			};
+			break;
+		}
+		default:
+			assertNever(report);
+	}
+}
+
+function getParentQuant(element: AST.Node): AST.Quantifier {
+	let node: AST.Node | null = element.parent;
+	while (node) {
+		if (node.type === "Quantifier") {
+			return node;
+		}
+		node = node.parent;
+	}
+	throw new Error("Cannot get parent quant of `" + element.raw + "`");
+}
+
+function toReportCharacter(char: CharSet): Report["character"] {
+	return {
+		set: char,
+		pick: String.fromCodePoint(Words.pickMostReadableCharacter(char)!),
+		literal: charToLiteral(char),
+	};
+}
+
+const PARSER = new RegExpParser();
+function parse(input: Readonly<Literal> | Readonly<ParsedLiteral>): Readonly<ParsedLiteral> {
+	if ("source" in input) {
+		// parse
+		const flags = PARSER.parseFlags(input.flags);
+		const pattern = PARSER.parsePattern(input.source, undefined, undefined, flags.unicode);
+		return { pattern, flags };
+	} else {
+		// already parsed
+		return input;
+	}
+}
