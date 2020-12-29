@@ -1599,6 +1599,8 @@ export function getFirstCharAfter(
 /**
  * Returns whether the given node is a star quantifier or is under a star quantifier.
  *
+ * The search for a star will stop if an assertion or the pattern itself has been reached while going up the tree.
+ *
  * @param element
  */
 export function isStared(element: AST.Node): boolean {
@@ -1606,6 +1608,9 @@ export function isStared(element: AST.Node): boolean {
 	while (e) {
 		if (e.type === "Quantifier" && e.max === Infinity) {
 			return true;
+		}
+		if (e !== element && e.type === "Assertion") {
+			return false;
 		}
 		e = e.parent;
 	}

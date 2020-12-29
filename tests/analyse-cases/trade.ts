@@ -221,4 +221,80 @@ export const cases: TestCase[] = [
 			},
 		],
 	},
+	{
+		literal: /^a+(?<!ba*)/m,
+		expected: [
+			{
+				type: "Trade",
+				char: /a/,
+				expo: false,
+				desc: String.raw`
+/^a+(?<!ba*)/m
+  ^~[start]
+         ^~[end]`,
+			},
+		],
+	},
+	{
+		literal: /^a+(?<!ba*)/m,
+		expected: [
+			{
+				type: "Trade",
+				char: /a/,
+				expo: false,
+				desc: String.raw`
+/^a+(?<!ba*)/m
+  ^~[start]
+         ^~[end]`,
+			},
+		],
+	},
+	{
+		literal: /^(a(?!a*a*b))+b/,
+		expected: [
+			{
+				type: "Trade",
+				char: /a/,
+				expo: false,
+				fixed: /^(a(?!a*b))+b/,
+				desc: String.raw`
+/^(a(?!a*a*b))+b/
+       ^~[start]
+         ^~[end]`,
+			},
+			{
+				type: "Trade",
+				char: /a/,
+				expo: false,
+				desc: String.raw`
+/^(a(?!a*a*b))+b/
+  ^~~~~~~~~~~~~[start]
+       ^~[end]`,
+			},
+		],
+	},
+	{
+		literal: /^(a(?=a*a*c|))+b$/,
+		expected: [
+			{
+				type: "Trade",
+				char: /a/,
+				expo: false,
+				fixed: /^(a(?=a*c|))+b$/,
+				desc: String.raw`
+/^(a(?=a*a*c|))+b$/
+       ^~[start]
+         ^~[end]`,
+			},
+			{
+				type: "Trade",
+				char: /a/,
+				expo: false,
+				desc: String.raw`
+/^(a(?=a*a*c|))+b$/
+  ^~~~~~~~~~~~~~[start]
+       ^~[end]`,
+			},
+		],
+	},
 ];

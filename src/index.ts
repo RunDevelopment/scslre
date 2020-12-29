@@ -308,11 +308,11 @@ export function analyse(
 	}
 
 	const selfReports = new Map<AST.Quantifier, Set<AST.Quantifier>>();
-	const tradeReports = new Map<AST.Quantifier, Set<AST.Quantifier>>();
-	function alreadyReported(
-		reports: Map<AST.Quantifier, Set<AST.Quantifier>>,
+	const tradeReports = new Map<AST.Quantifier, Set<AST.Element>>();
+	function alreadyReported<Partner extends AST.Node>(
+		reports: Map<AST.Quantifier, Set<Partner>>,
 		a: AST.Quantifier,
-		b: AST.Quantifier
+		b: Partner
 	): boolean {
 		let value = reports.get(a);
 		if (value === undefined) {
@@ -359,31 +359,39 @@ export function analyse(
 					return;
 				}
 
-				function canReachFromBothDirections(parent: AST.Quantifier, child: AST.Quantifier): boolean {
-					return (
-						canReachChild(parent, child, intersection, "ltr", flags) &&
-						canReachChild(parent, child, intersection, "rtl", flags)
-					);
-				}
-
 				let quant: AST.Quantifier | undefined;
 				let parent: AST.Quantifier | undefined;
 				if (node === element) {
 					quant = node;
 					parent = getParentQuant(node);
-				} else if (hasSomeAncestor(node, a => a === element)) {
-					if (canReachFromBothDirections(element, node)) {
-						quant = node;
-						parent = element;
-					}
-				} else if (hasSomeAncestor(element, a => a === node)) {
-					if (canReachFromBothDirections(node, element)) {
-						quant = element;
-						parent = node;
-					}
+				} else if (isParentOf(element, node)) {
+					quant = node;
+					parent = element;
+				} else if (isParentOf(node, element)) {
+					quant = element;
+					parent = node;
 				}
 
-				if (quant && parent) {
+				let assertion;
+				if (quant && parent && (assertion = assertionBetweenParentAndChild(parent, quant))) {
+					if (!alreadyReported(tradeReports, node, assertion)) {
+						addReport({
+							type: "Trade",
+							startQuant: node,
+							endQuant: element,
+							character: toReportCharacter(intersection),
+							fix: NO_FIX,
+							// this type of ambiguity can't cause exponential backtracking because assertions are
+							// guaranteed to be atomic by the ES spec
+							exponential: false,
+						});
+					}
+				} else if (
+					quant &&
+					parent &&
+					canReachChild(parent, quant, intersection, "ltr", flags) &&
+					canReachChild(parent, quant, intersection, "rtl", flags)
+				) {
 					if (!alreadyReported(selfReports, quant, parent)) {
 						addReport({
 							type: "Self",
@@ -537,6 +545,34 @@ function toReportCharacter(char: CharSet): Report["character"] {
 		pick: String.fromCodePoint(Words.pickMostReadableCharacter(char)!),
 		literal: charToLiteral(char),
 	};
+}
+
+function isParentOf(parent: AST.Node, child: AST.Node): boolean {
+	return hasSomeAncestor(child, a => a === parent);
+}
+/**
+ * Returns the assertion closest to the parent from all assertions between the given parent and child node.
+ *
+ * @param parent
+ * @param child
+ */
+function assertionBetweenParentAndChild(parent: AST.Node, child: AST.Node): AST.LookaroundAssertion | undefined {
+	let p = child.parent;
+	let assertion: AST.LookaroundAssertion | undefined = undefined;
+	while (p) {
+		if (p === parent) {
+			return assertion;
+		}
+		if (p.type === "Assertion") {
+			assertion = p;
+		}
+		p = p.parent;
+	}
+	throw new Error("The given nodes are not parent and child.");
+}
+
+function isExponentialTrade(start: AST.Quantifier, end: AST.Quantifier): boolean {
+	return isStared(getCommonAncestor(start, end));
 }
 
 const PARSER = new RegExpParser();
