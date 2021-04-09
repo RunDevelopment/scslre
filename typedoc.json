@@ -5,7 +5,7 @@
   "excludeProtected": true,
 
   "out": "docs",
-  "theme": "minimal",
+  "theme": "default",
 
   "includeVersion": true,
   "disableSources": true,
