@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.1.2 (2021-04-09)
+
+### Fixed
+
+- Mis-categorizations because of assertions.
+
+### Changed
+
+- New documentation deployment.
+- Updated [refa](https://github.com/RunDevelopment/refa) version and added [regexp-ast-analysis](https://github.com/RunDevelopment/regexp-ast-analysis).
+
+
 ## 0.1.1 (2020-12-27)
 
 ### Fixed
