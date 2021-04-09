@@ -256,10 +256,8 @@ export function analyse(
 		return result;
 	}
 	const reportTypes = options.reportTypes ?? {};
-
 	function addReport(report: Report): void {
-		const allowedType = reportTypes[report.type] ?? true;
-		if (result.reports.length < maxReports && allowedType) {
+		if (result.reports.length < maxReports && reportTypes[report.type] !== false) {
 			addFix(result.parsed, report);
 			result.reports.push(report);
 		}
@@ -327,6 +325,87 @@ export function analyse(
 		}
 	}
 
+	function getVulnerableChar(prefix: ConsumedRepeatedChar, quant: AST.Quantifier): CharSet {
+		const quantCRC = getCRC(quant);
+
+		const intersection = quantCRC.consume.intersect(prefix.consume.union(prefix.assert));
+		if (intersection.isEmpty) {
+			return intersection;
+		}
+
+		// remove all characters that are an accepting suffix if repeated
+		const crcAfter = assertConsumedRepeatedChar(getCRCAfterElement(quant)).assert;
+
+		return intersection.without(crcAfter);
+	}
+
+	function checkQuantifier(start: AST.Quantifier, end: AST.Quantifier, state: ConsumedRepeatedChar): void {
+		if (end.max !== Infinity) {
+			return;
+		}
+
+		const vulnerableChar = getVulnerableChar(state, end);
+		if (vulnerableChar.isEmpty) {
+			return;
+		}
+
+		let quant: AST.Quantifier | undefined;
+		let parent: AST.Quantifier | undefined;
+		if (start === end) {
+			quant = start;
+			parent = getParentQuant(start);
+		} else if (isParentOf(end, start)) {
+			quant = start;
+			parent = end;
+		} else if (isParentOf(start, end)) {
+			quant = end;
+			parent = start;
+		}
+
+		let assertion;
+		if (quant && parent && (assertion = assertionBetweenParentAndChild(parent, quant))) {
+			if (!alreadyReported(tradeReports, start, assertion)) {
+				addReport({
+					type: "Trade",
+					startQuant: start,
+					endQuant: end,
+					character: toReportCharacter(vulnerableChar),
+					fix: NO_FIX,
+					// this type of ambiguity can't cause exponential backtracking because assertions are
+					// guaranteed to be atomic by the ES spec
+					exponential: false,
+				});
+			}
+		} else if (
+			quant &&
+			parent &&
+			canReachChild(parent, quant, vulnerableChar, "ltr", flags) &&
+			canReachChild(parent, quant, vulnerableChar, "rtl", flags)
+		) {
+			if (!alreadyReported(selfReports, quant, parent)) {
+				addReport({
+					type: "Self",
+					quant,
+					parentQuant: parent,
+					character: toReportCharacter(vulnerableChar),
+					fix: NO_FIX,
+					exponential: isStared(parent),
+				});
+			}
+		} else {
+			if (!alreadyReported(tradeReports, start, end)) {
+				addReport({
+					type: "Trade",
+					startQuant: start,
+					endQuant: end,
+					character: toReportCharacter(vulnerableChar),
+					fix: NO_FIX,
+					exponential: isStared(getCommonAncestor(start, end)),
+				});
+			}
+		}
+	}
+
 	visitRegExpAST(pattern, {
 		onQuantifierLeave(node) {
 			if (node.max !== Infinity) {
@@ -341,87 +420,12 @@ export function analyse(
 				return;
 			}
 
-			function checkQuantifier(element: AST.Quantifier, state: ConsumedRepeatedChar): void {
-				if (element.max !== Infinity) {
-					return;
-				}
-
-				const endChar = getCRC(element);
-				let intersection = endChar.consume.intersect(state.consume);
-				if (intersection.isEmpty) {
-					return;
-				}
-
-				// remove all characters that are an accepting suffix if repeated
-				const crcAfter = assertConsumedRepeatedChar(getCRCAfterElement(element)).assert;
-				intersection = intersection.without(crcAfter);
-				if (intersection.isEmpty) {
-					return;
-				}
-
-				let quant: AST.Quantifier | undefined;
-				let parent: AST.Quantifier | undefined;
-				if (node === element) {
-					quant = node;
-					parent = getParentQuant(node);
-				} else if (isParentOf(element, node)) {
-					quant = node;
-					parent = element;
-				} else if (isParentOf(node, element)) {
-					quant = element;
-					parent = node;
-				}
-
-				let assertion;
-				if (quant && parent && (assertion = assertionBetweenParentAndChild(parent, quant))) {
-					if (!alreadyReported(tradeReports, node, assertion)) {
-						addReport({
-							type: "Trade",
-							startQuant: node,
-							endQuant: element,
-							character: toReportCharacter(intersection),
-							fix: NO_FIX,
-							// this type of ambiguity can't cause exponential backtracking because assertions are
-							// guaranteed to be atomic by the ES spec
-							exponential: false,
-						});
-					}
-				} else if (
-					quant &&
-					parent &&
-					canReachChild(parent, quant, intersection, "ltr", flags) &&
-					canReachChild(parent, quant, intersection, "rtl", flags)
-				) {
-					if (!alreadyReported(selfReports, quant, parent)) {
-						addReport({
-							type: "Self",
-							quant,
-							parentQuant: parent,
-							character: toReportCharacter(intersection),
-							fix: NO_FIX,
-							exponential: isStared(parent),
-						});
-					}
-				} else {
-					if (!alreadyReported(tradeReports, node, element)) {
-						addReport({
-							type: "Trade",
-							startQuant: node,
-							endQuant: element,
-							character: toReportCharacter(intersection),
-							fix: NO_FIX,
-							exponential: isStared(getCommonAncestor(node, element)),
-						});
-					}
-				}
-			}
-
 			followPaths<ConsumedRepeatedChar>(node, "next", startChar, {
 				...sharedOperations,
 
 				enter(element, state: ConsumedRepeatedChar): ConsumedRepeatedChar {
 					if (element.type === "Quantifier") {
-						checkQuantifier(element, state);
+						checkQuantifier(node, element, state);
 					}
 					return state;
 				},
@@ -433,7 +437,7 @@ export function analyse(
 
 				enter(element, state: ConsumedRepeatedChar): ConsumedRepeatedChar {
 					if (element !== node && element.type === "Quantifier") {
-						checkQuantifier(element, state);
+						checkQuantifier(node, element, state);
 					}
 					return state;
 				},
@@ -449,29 +453,21 @@ export function analyse(
 		// move
 
 		// eslint-disable-next-line no-inner-declarations
-		function checkMoveQuantifier(element: AST.Quantifier, state: ConsumedRepeatedChar): void {
-			if (element.max !== Infinity) {
+		function checkMoveQuantifier(quant: AST.Quantifier, state: ConsumedRepeatedChar): void {
+			if (quant.max !== Infinity) {
 				return;
 			}
 
-			const endChar = getCRC(element);
-			let intersection = endChar.consume.intersect(state.consume);
-			if (intersection.isEmpty) {
-				return;
-			}
-
-			// remove all characters that are an accepting suffix if repeated
-			const crcAfter = assertConsumedRepeatedChar(getCRCAfterElement(element)).assert;
-			intersection = intersection.without(crcAfter);
-			if (intersection.isEmpty) {
+			const vulnerableChar = getVulnerableChar(state, quant);
+			if (vulnerableChar.isEmpty) {
 				return;
 			}
 
 			// found it
 			addReport({
 				type: "Move",
-				quant: element,
-				character: toReportCharacter(intersection),
+				quant,
+				character: toReportCharacter(vulnerableChar),
 				fix: NO_FIX,
 				exponential: false,
 			});
@@ -569,10 +565,6 @@ function assertionBetweenParentAndChild(parent: AST.Node, child: AST.Node): AST.
 		p = p.parent;
 	}
 	throw new Error("The given nodes are not parent and child.");
-}
-
-function isExponentialTrade(start: AST.Quantifier, end: AST.Quantifier): boolean {
-	return isStared(getCommonAncestor(start, end));
 }
 
 const PARSER = new RegExpParser();
