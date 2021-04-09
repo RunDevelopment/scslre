@@ -94,7 +94,7 @@ export const cases: TestCase[] = [
 		expected: [
 			{
 				type: "Trade",
-				char: /[0-9A-F]/i,
+				char: /[\dA-F]/i,
 				expo: false,
 				fixed: /^0x(?:[\da-f]*\.)?[\da-fp-]+$/i,
 				desc: String.raw`
@@ -171,7 +171,7 @@ export const cases: TestCase[] = [
 				type: "Trade",
 				char: /[a-z]/,
 				expo: false,
-				fixed: /^[0-9A-Z_]*[a-z]\w*$/,
+				fixed: /^[\dA-Z_]*[a-z]\w*$/,
 				desc: String.raw`
 /^\w*[a-z]\w*$/
   ^~~[start]

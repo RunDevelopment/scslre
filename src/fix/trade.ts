@@ -1,18 +1,17 @@
 import type { Literal, ParsedLiteral, TradeReport } from "..";
 import { AST } from "regexpp";
-import {
-	getFirstCharConsumedBy,
-	isPotentiallyZeroLength,
-	isSingleCharacter,
-	MatchingDirection,
-	matchingDirectionOf,
-	SingleCharacter,
-	toCharSet,
-} from "../ast-util";
+import { isSingleCharacter, SingleCharacter } from "../ast-util";
 import { charToLiteral } from "../util";
 import { Fixer } from "./fixer";
 import { containsCapturingGroup, equalElements, quantToString, withConstQuantifier, withDirection } from "./util";
 import { Concatenation, DFA, JS, NFA, NoParent } from "refa";
+import {
+	getFirstConsumedChar,
+	getMatchingDirection,
+	isPotentiallyZeroLength,
+	MatchingDirection,
+	toCharSet,
+} from "regexp-ast-analysis";
 
 export function fixTrade(literal: Readonly<ParsedLiteral>, report: Readonly<TradeReport>): Literal | void {
 	const { startQuant, endQuant } = report;
@@ -24,7 +23,7 @@ export function fixTrade(literal: Readonly<ParsedLiteral>, report: Readonly<Trad
 	const fixer = new Fixer(literal);
 
 	if (startQuant.parent === endQuant.parent) {
-		const direction = matchingDirectionOf(startQuant);
+		const direction = getMatchingDirection(startQuant);
 		const expectedDirection: MatchingDirection = startQuant.start < endQuant.start ? "ltr" : "rtl";
 
 		// Characters are always consumed from start to end but the path from start to end may not be the direct one:
@@ -155,9 +154,9 @@ function quantifierInBetween(
 	// We now have 3 quantifiers with non-empty elements and the quantifier in between has min=0 && max>0
 	// E.g. /a*b*a*/, /\d+\.?\d*/
 
-	const startFirstChar = getFirstCharConsumedBy(startQuant.element, d, literal.flags);
-	const endFirstChar = getFirstCharConsumedBy(endQuant.element, d, literal.flags);
-	const betweenFirstChar = getFirstCharConsumedBy(betweenQuant.element, d, literal.flags);
+	const startFirstChar = getFirstConsumedChar(startQuant.element, d, literal.flags);
+	const endFirstChar = getFirstConsumedChar(endQuant.element, d, literal.flags);
+	const betweenFirstChar = getFirstConsumedChar(betweenQuant.element, d, literal.flags);
 
 	function groupAlternatives(alternatives: string[]): string {
 		if (startQuant.parent.elements.length === 3 /* 3 == start + between + end */) {
@@ -295,6 +294,7 @@ function characterInBetween(
 					type: "Quantifier",
 					min: startQuant.min,
 					max: Infinity,
+					lazy: false,
 					alternatives: [
 						{ type: "Concatenation", elements: [{ type: "CharacterClass", characters: startChar }] },
 					],
@@ -304,6 +304,7 @@ function characterInBetween(
 					type: "Quantifier",
 					min: endQuant.min,
 					max: Infinity,
+					lazy: false,
 					alternatives: [
 						{ type: "Concatenation", elements: [{ type: "CharacterClass", characters: endChar }] },
 					],

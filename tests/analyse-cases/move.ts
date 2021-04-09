@@ -19,7 +19,7 @@ export const cases: TestCase[] = [
 		expected: [
 			{
 				type: "Move",
-				char: /[0-9A-Z_b-z]/,
+				char: /[\dA-Z_b-z]/,
 				expo: false,
 				desc: String.raw`
 /\w+a/

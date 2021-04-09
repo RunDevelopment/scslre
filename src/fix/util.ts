@@ -1,5 +1,6 @@
+import { hasSomeDescendant, MatchingDirection, toCharSet } from "regexp-ast-analysis";
 import { AST } from "regexpp";
-import { hasSomeDescendant, isSingleCharacter, MatchingDirection, toCharSet } from "../ast-util";
+import { isSingleCharacter } from "../ast-util";
 
 export interface Quant {
 	min: number;

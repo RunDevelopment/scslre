@@ -1,17 +1,12 @@
 import { CharSet, Words } from "refa";
+import { Chars, FollowOperations, followPaths, getClosestAncestor, hasSomeAncestor } from "regexp-ast-analysis";
 import { AST, RegExpParser, visitRegExpAST } from "regexpp";
 import {
-	allCharSet,
 	assertConsumedRepeatedChar,
 	canReachChild,
 	concatConsumedRepeatedChars,
 	ConsumedRepeatedChar,
-	emptyCharSet,
-	FollowOperations,
-	followPaths,
-	getCommonAncestor,
 	getConsumedRepeatedChar,
-	hasSomeAncestor,
 	isStared,
 	unionConsumedRepeatedChars,
 } from "./ast-util";
@@ -300,7 +295,7 @@ export function analyse(
 		return followPaths<ConsumedRepeatedChar>(
 			after,
 			"next",
-			{ consume: emptyCharSet(flags), assert: allCharSet(flags) },
+			{ consume: Chars.empty(flags), assert: Chars.all(flags) },
 			sharedOperations
 		);
 	}
@@ -400,7 +395,7 @@ export function analyse(
 					endQuant: end,
 					character: toReportCharacter(vulnerableChar),
 					fix: NO_FIX,
-					exponential: isStared(getCommonAncestor(start, end)),
+					exponential: isStared(getClosestAncestor(start, end)),
 				});
 			}
 		}
@@ -474,8 +469,8 @@ export function analyse(
 		}
 
 		const startChar: ConsumedRepeatedChar = {
-			consume: allCharSet(flags),
-			assert: emptyCharSet(flags),
+			consume: Chars.all(flags),
+			assert: Chars.empty(flags),
 		};
 
 		for (const alt of pattern.alternatives) {
