@@ -8,13 +8,7 @@ export function assertNever(value: never, message?: string): never {
 }
 
 export function charToLiteral(char: CharSet, flags?: JS.Flags): Literal {
-	return JS.toLiteral(
-		{
-			type: "Concatenation",
-			elements: [{ type: "CharacterClass", characters: char }],
-		},
-		{ flags }
-	);
+	return JS.toLiteral({ type: "CharacterClass", characters: char }, { flags });
 }
 
 export function cachedFn<I, O>(fn: (input: I) => O): (input: I) => O {

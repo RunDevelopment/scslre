@@ -1,4 +1,4 @@
-import { CharSet, JS } from "refa";
+import { CharSet } from "refa";
 import {
 	isStrictBackreference,
 	Chars,
@@ -130,8 +130,8 @@ export function getConsumedRepeatedChar(node: AST.Node | AST.Alternative[], flag
 					// \b == (?:(?<=\w)(?!\w)|(?<!\w)(?=\w))
 					// \B == (?:(?<=\w)(?=\w)|(?<!\w)(?!\w))
 
-					const word = JS.createCharSet([{ kind: "word", negate: false }], flags);
-					const nonWord = JS.createCharSet([{ kind: "word", negate: true }], flags);
+					const word = Chars.word(flags);
+					const nonWord = word.negate();
 
 					for (const direction of ["ltr", "rtl"] as const) {
 						const after = getFirstCharAfter(node, direction, flags);
