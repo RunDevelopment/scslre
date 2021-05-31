@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.1.3 (2021-05-31)
+
+### Changed
+
+- Minor improvements.
+- Updated [refa](https://github.com/RunDevelopment/refa) version and added [regexp-ast-analysis](https://github.com/RunDevelopment/regexp-ast-analysis).
+
+
 ## 0.1.2 (2021-04-09)
 
 ### Fixed
