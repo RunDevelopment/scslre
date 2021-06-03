@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.4 (2021-06-03)
+
+### Changed
+
+- Updated [regexp-ast-analysis](https://github.com/RunDevelopment/regexp-ast-analysis).
+
+
 ## 0.1.3 (2021-05-31)
 
 ### Changed
