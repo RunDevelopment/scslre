@@ -1,6 +1,7 @@
 import { TestCase } from "../analyse-helper";
 
 const valid: (RegExp | TestCase)[] = [
+	/a+a+/,
 	/Za*b*c*/,
 	/#a*b+a*/,
 	/^[\s\S]+(?=\/[a-z]+$)/,

@@ -297,4 +297,35 @@ export const cases: TestCase[] = [
 			},
 		],
 	},
+	{
+		literal: /\ba+a+\b/,
+		expected: [
+			{
+				type: "Trade",
+				char: /a/,
+				expo: false,
+				fixed: /\ba{2,}\b/,
+				desc: String.raw`
+/\ba+a+\b/
+   ^~[start]
+     ^~[end]`,
+			},
+		],
+	},
+	{
+		literal: /\ba+a+/,
+		options: { assumeRejectingSuffix: true },
+		expected: [
+			{
+				type: "Trade",
+				char: /a/,
+				expo: false,
+				fixed: /\ba{2,}/,
+				desc: String.raw`
+/\ba+a+/
+   ^~[start]
+     ^~[end]`,
+			},
+		],
+	},
 ];

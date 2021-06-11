@@ -27,4 +27,18 @@ export const cases: TestCase[] = [
 			},
 		],
 	},
+	{
+		literal: /\w+/,
+		options: { assumeRejectingSuffix: true },
+		expected: [
+			{
+				type: "Move",
+				char: /\w/i,
+				expo: false,
+				desc: String.raw`
+/\w+/
+ ^~~`,
+			},
+		],
+	},
 ];
