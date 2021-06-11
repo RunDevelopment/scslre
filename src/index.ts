@@ -222,6 +222,26 @@ export interface AnalysisOptions {
 	 * By default, all report types are allowed.
 	 */
 	reportTypes?: Partial<Record<Report["type"], boolean>>;
+	/**
+	 * Whether the analyser is allowed to assume that a rejecting suffix can always be found.
+	 *
+	 * To exploit ambiguity in quantifiers, it is necessary to force the regex engine to go through all possible paths.
+	 * This can only be done by finding a suffix that causes the exploitable part of analysed regex to reject the input
+	 * string. If such a suffix cannot be found, the regex is not exploitable.
+	 *
+	 * If this option is set to `false`, a heuristic will be used to determine whether a rejecting suffix can be found.
+	 * This will prevent reporting false positives - non-exploitable quantifiers.
+	 *
+	 * The heuristic makes the assumption that the regex is used as is - that the regex is not modified or used to
+	 * construct other regexes. If this assumption is not met, the heuristic will prevent the reporting of potential
+	 * true positives.
+	 *
+	 * By setting this option to `true`, the heuristic will not be used and all reports are assumed to be true
+	 * positives.
+	 *
+	 * @default false
+	 */
+	assumeRejectingSuffix?: boolean;
 }
 
 const NO_FIX: Report["fix"] = () => undefined;
@@ -239,18 +259,18 @@ export function analyse(
 	options?: Readonly<AnalysisOptions>
 ): AnalysisResult {
 	const { pattern, flags } = parse(input);
+	const { maxReports, reportTypes, assumeRejectingSuffix } = withDefaults(options);
+
 	const result: AnalysisResult = {
 		parsed: { pattern, flags },
 		literal: { source: pattern.raw, flags: flags.raw },
 		reports: [],
 	};
 
-	options = options ?? {};
-	const maxReports = options.maxReports ?? Infinity;
 	if (maxReports <= 0) {
 		return result;
 	}
-	const reportTypes = options.reportTypes ?? {};
+
 	function addReport(report: Report): void {
 		if (result.reports.length < maxReports && reportTypes[report.type] !== false) {
 			addFix(result.parsed, report);
@@ -323,15 +343,20 @@ export function analyse(
 	function getVulnerableChar(prefix: ConsumedRepeatedChar, quant: AST.Quantifier): CharSet {
 		const quantCRC = getCRC(quant);
 
-		const intersection = quantCRC.consume.intersect(prefix.consume.union(prefix.assert));
-		if (intersection.isEmpty) {
-			return intersection;
+		const vulnerable = quantCRC.consume.intersect(prefix.consume.union(prefix.assert));
+		if (vulnerable.isEmpty) {
+			return vulnerable;
 		}
 
-		// remove all characters that are an accepting suffix if repeated
-		const crcAfter = assertConsumedRepeatedChar(getCRCAfterElement(quant)).assert;
+		if (assumeRejectingSuffix) {
+			// as described in the docs of the option, we will assume that we can always find a rejecting suffix
+			return vulnerable;
+		} else {
+			// remove all characters that are an accepting suffix if repeated
+			const accepting = assertConsumedRepeatedChar(getCRCAfterElement(quant)).assert;
 
-		return intersection.without(crcAfter);
+			return vulnerable.without(accepting);
+		}
 	}
 
 	function checkQuantifier(start: AST.Quantifier, end: AST.Quantifier, state: ConsumedRepeatedChar): void {
@@ -492,6 +517,14 @@ export function analyse(
 	}
 
 	return result;
+}
+
+function withDefaults(options?: Readonly<AnalysisOptions>): Required<AnalysisOptions> {
+	return {
+		maxReports: options?.maxReports ?? Infinity,
+		reportTypes: options?.reportTypes ?? {},
+		assumeRejectingSuffix: options?.assumeRejectingSuffix ?? false,
+	};
 }
 
 function addFix(literal: Readonly<ParsedLiteral>, report: Report): void {
