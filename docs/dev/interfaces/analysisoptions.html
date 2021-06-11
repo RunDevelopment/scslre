@@ -78,6 +78,7 @@
 						<section class="tsd-index-section ">
 							<h3>Properties</h3>
 							<ul class="tsd-index-list">
+								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="analysisoptions.html#assumerejectingsuffix" class="tsd-kind-icon">assume<wbr>Rejecting<wbr>Suffix</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="analysisoptions.html#maxreports" class="tsd-kind-icon">max<wbr>Reports</a></li>
 								<li class="tsd-kind-property tsd-parent-kind-interface"><a href="analysisoptions.html#reporttypes" class="tsd-kind-icon">report<wbr>Types</a></li>
 							</ul>
@@ -87,6 +88,33 @@
 			</section>
 			<section class="tsd-panel-group tsd-member-group ">
 				<h2>Properties</h2>
+				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
+					<a name="assumerejectingsuffix" class="tsd-anchor"></a>
+					<h3><span class="tsd-flag ts-flagOptional">Optional</span> assume<wbr>Rejecting<wbr>Suffix</h3>
+					<div class="tsd-signature tsd-kind-icon">assume<wbr>Rejecting<wbr>Suffix<span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div>
+					<aside class="tsd-sources">
+					</aside>
+					<div class="tsd-comment tsd-typography">
+						<div class="lead">
+							<p>Whether the analyser is allowed to assume that a rejecting suffix can always be found.</p>
+						</div>
+						<p>To exploit ambiguity in quantifiers, it is necessary to force the regex engine to go through all possible paths.
+							This can only be done by finding a suffix that causes the exploitable part of analysed regex to reject the input
+						string. If such a suffix cannot be found, the regex is not exploitable.</p>
+						<p>If this option is set to <code>false</code>, a heuristic will be used to determine whether a rejecting suffix can be found.
+						This will prevent reporting false positives - non-exploitable quantifiers.</p>
+						<p>The heuristic makes the assumption that the regex is used as is - that the regex is not modified or used to
+							construct other regexes. If this assumption is not met, the heuristic will prevent the reporting of potential
+						true positives.</p>
+						<p>By setting this option to <code>true</code>, the heuristic will not be used and all reports are assumed to be true
+						positives.</p>
+						<dl class="tsd-comment-tags">
+							<dt>default</dt>
+							<dd><p>false</p>
+							</dd>
+						</dl>
+					</div>
+				</section>
 				<section class="tsd-panel tsd-member tsd-kind-property tsd-parent-kind-interface">
 					<a name="maxreports" class="tsd-anchor"></a>
 					<h3><span class="tsd-flag ts-flagOptional">Optional</span> max<wbr>Reports</h3>
@@ -134,6 +162,9 @@
 					<li class="current tsd-kind-interface">
 						<a href="analysisoptions.html" class="tsd-kind-icon">Analysis<wbr>Options</a>
 						<ul>
+							<li class=" tsd-kind-property tsd-parent-kind-interface">
+								<a href="analysisoptions.html#assumerejectingsuffix" class="tsd-kind-icon">assume<wbr>Rejecting<wbr>Suffix</a>
+							</li>
 							<li class=" tsd-kind-property tsd-parent-kind-interface">
 								<a href="analysisoptions.html#maxreports" class="tsd-kind-icon">max<wbr>Reports</a>
 							</li>
