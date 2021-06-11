@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5 (2021-06-11)
+
+### Added
+
+- New `assumeRejectingSuffix` option for more control over how false positives are filtered out.
+
+
 ## 0.1.4 (2021-06-03)
 
 ### Changed
