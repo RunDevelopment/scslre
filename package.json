@@ -1,6 +1,6 @@
 {
   "name": "scslre",
-  "version": "0.1.5",
+  "version": "0.1.6",
   "description": "A library to find JS RegExp with super-linear worst-case time complexity for attack strings that repeat a single character.",
   "main": "index",
   "scripts": {
