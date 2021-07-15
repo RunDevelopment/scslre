@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.6 (2021-07-15)
+
+### Changed
+
+- Updated refa, regexpp, and regexp-ast-analysis.
+
+
 ## 0.1.5 (2021-06-11)
 
 ### Added
