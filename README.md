@@ -9,7 +9,7 @@ A library to find JS RegExp with super-linear worst-case time complexity for att
 
 The static analysis method implemented by this library focuses on finding attack string tuples where a single character is repeated. This major limitation allows the library to be fast while also offering decent support for backreferences and [assertions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions/Assertions).
 
-This library is not intended as a full static analysis to guard against super-linear worst-case time complexity. It is meant to be as a supplementary analysis on top of existing general analysis methods that don't (or don't fully) support advanced regex features.
+This library is not intended as a full static analysis to guard against super-linear worst-case time complexity. It is meant to be as a supplementary analysis on top of existing general analysis methods that don't (or don't fully) support advanced regex features, or as a lightweight analysis on top of existing full (but heavyweight) analysis methods. Libraries that provide such general or near-full analysis are known as [recheck](https://github.com/MakeNowJust-Labo/recheck) and [vuln-regex-detector](https://github.com/davisjam/vuln-regex-detector). You may consider using these libraries as well.
 
 
 ## Usage
