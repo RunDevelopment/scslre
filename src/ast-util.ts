@@ -9,7 +9,7 @@ import {
 	MatchingDirection,
 	toCharSet,
 } from "regexp-ast-analysis";
-import { AST } from "regexpp";
+import { AST } from "@eslint-community/regexpp";
 import { assertNever } from "./util";
 
 export type SingleCharacter = AST.Character | AST.CharacterClass | AST.CharacterSet;

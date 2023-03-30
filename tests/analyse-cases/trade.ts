@@ -21,7 +21,7 @@ export const cases: TestCase[] = [
 		expected: [
 			{
 				type: "Trade",
-				char: /\d/i,
+				char: /\d/,
 				expo: false,
 				fixed: /\b\w+$/,
 				desc: String.raw`
@@ -36,7 +36,7 @@ export const cases: TestCase[] = [
 		expected: [
 			{
 				type: "Trade",
-				char: /\d/i,
+				char: /\d/,
 				expo: false,
 				fixed: /\b(?:\d(?:_\d)?)+(?:\.(?:\d(?:_\d)?)*)?$/,
 				desc: String.raw`
@@ -79,7 +79,7 @@ export const cases: TestCase[] = [
 		expected: [
 			{
 				type: "Trade",
-				char: /\d/i,
+				char: /\d/,
 				expo: false,
 				fixed: /^\b(?:\d+(?:[._]\d+)?|[._]\d+)(?:e[-+]?\d+)?$/i,
 				desc: String.raw`

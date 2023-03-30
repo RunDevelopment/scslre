@@ -1,5 +1,5 @@
 import type { Literal, ParsedLiteral, TradeReport } from "..";
-import { AST } from "regexpp";
+import { AST } from "@eslint-community/regexpp";
 import { isSingleCharacter, SingleCharacter } from "../ast-util";
 import { charToLiteral } from "../util";
 import { Fixer } from "./fixer";

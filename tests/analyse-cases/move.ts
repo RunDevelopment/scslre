@@ -6,7 +6,7 @@ export const cases: TestCase[] = [
 		expected: [
 			{
 				type: "Move",
-				char: /#/i,
+				char: /#/,
 				expo: false,
 				desc: String.raw`
 /#.*$/
@@ -33,7 +33,7 @@ export const cases: TestCase[] = [
 		expected: [
 			{
 				type: "Move",
-				char: /\w/i,
+				char: /\w/,
 				expo: false,
 				desc: String.raw`
 /\w+/

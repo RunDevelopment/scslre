@@ -1,5 +1,5 @@
 import { hasSomeDescendant, MatchingDirection, toCharSet } from "regexp-ast-analysis";
-import { AST } from "regexpp";
+import { AST } from "@eslint-community/regexpp";
 import { isSingleCharacter } from "../ast-util";
 
 export interface Quant {
