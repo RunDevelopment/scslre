@@ -1,0 +1,57 @@
+<!DOCTYPE html><html class="default"><head><meta charSet="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>scslre - v0.2.0</title><meta name="description" content="Documentation for scslre - v0.2.0"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="assets/style.css"/><link rel="stylesheet" href="assets/highlight.css"/><script async src="assets/search.js" id="search-script"></script></head><body><script>document.body.classList.add(localStorage.getItem("tsd-theme") || "os")</script><header><div class="tsd-page-toolbar"><div class="container"><div class="table-wrap"><div class="table-cell" id="tsd-search" data-base="."><div class="field"><label for="tsd-search-field" class="tsd-widget search no-caption">Search</label><input type="text" id="tsd-search-field"/></div><ul class="results"><li class="state loading">Preparing search index...</li><li class="state failure">The search index is not available</li></ul><a href="index.html" class="title">scslre - v0.2.0</a></div><div class="table-cell" id="tsd-widgets"><div id="tsd-filter"><a href="#" class="tsd-widget options no-caption" data-toggle="options">Options</a><div class="tsd-filter-group"><div class="tsd-select" id="tsd-filter-visibility"><span class="tsd-select-label">All</span><ul class="tsd-select-list"><li data-value="public">Public</li><li data-value="protected">Public/Protected</li><li data-value="private" class="selected">All</li></ul></div> <input type="checkbox" id="tsd-filter-inherited" checked/><label class="tsd-widget" for="tsd-filter-inherited">Inherited</label></div></div><a href="#" class="tsd-widget menu no-caption" data-toggle="menu">Menu</a></div></div></div></div><div class="tsd-page-title"><div class="container"><h1>scslre - v0.2.0 </h1></div></div></header><div class="container container-main"><div class="row"><div class="col-8 col-content"><div class="tsd-panel tsd-typography">
+<a href="#single-character-super-linear-regexps" id="single-character-super-linear-regexps" style="color: inherit; text-decoration: none;">
+  <h1>Single-character super-linear RegExps</h1>
+</a>
+<p><sup><sub>what a name...</sub></sup></p>
+<p><a href="https://github.com/RunDevelopment/scslre/actions"><img src="https://github.com/RunDevelopment/scslre/workflows/CI/badge.svg" alt="Actions Status"></a>
+<a href="https://www.npmjs.com/package/scslre"><img src="https://img.shields.io/npm/v/scslre" alt="npm"></a></p>
+<p>A library to find JS RegExp with super-linear worst-case time complexity for attack strings that repeat a single character.</p>
+<p>The static analysis method implemented by this library focuses on finding attack string tuples where a single character is repeated. This major limitation allows the library to be fast while also offering decent support for backreferences and <a href="https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Regular_Expressions/Assertions">assertions</a>.</p>
+<p>This library is not intended as a full static analysis to guard against super-linear worst-case time complexity. It is meant to be as a supplementary analysis on top of existing general analysis methods that don&#39;t (or don&#39;t fully) support advanced regex features, or as a lightweight analysis on top of existing full (but heavyweight) analysis methods. Libraries that provide such general or near-full analysis are known as <a href="https://github.com/MakeNowJust-Labo/recheck">recheck</a> and <a href="https://github.com/davisjam/vuln-regex-detector">vuln-regex-detector</a>. You may consider using these libraries as well.</p>
+
+<a href="#usage" id="usage" style="color: inherit; text-decoration: none;">
+  <h2>Usage</h2>
+</a>
+<p>This library exports only a single function, <code>analyse</code>, which takes a RegExp literal and returns a list of reports that show the quantifiers causing super-linear worst-case time complexity.</p>
+
+<a href="#documentation" id="documentation" style="color: inherit; text-decoration: none;">
+  <h3>Documentation</h3>
+</a>
+<p>For more information on the exact inputs and outputs of each function, see the full API documentation.</p>
+<ul>
+<li><a href="https://rundevelopment.github.io/scslre/docs/latest/">Latest release</a></li>
+<li><a href="https://rundevelopment.github.io/scslre/docs/dev/">Development</a></li>
+</ul>
+
+<a href="#limitations" id="limitations" style="color: inherit; text-decoration: none;">
+  <h2>Limitations</h2>
+</a>
+
+<a href="#analysis" id="analysis" style="color: inherit; text-decoration: none;">
+  <h3>Analysis</h3>
+</a>
+<p>This library is implemented using a very limited static analysis method that can only find attack strings where a single character is repeated. Attack strings are generated from a tuple <em>(x,y,z)</em> such that every string <em>s = xy<sup>n</sup>z</em> (or <code>x + y.repeat(n) + z</code> for JS folks) takes <em>O(n<sup>p</sup>)</em> or <em>O(2<sup>n</sup>)</em> many steps to reject, p&gt;1. This analysis method can only find tuples where <em>y</em> is a single character. E.g. the polynomial backtracking in <code>/^(ab)*(ab)*$/</code> for <em>(x,y,z) = (&quot;&quot;, &quot;ab&quot;, &quot;c&quot;)</em> cannot be detected by this library because <em>y</em> is not a single character.</p>
+<p>However, this limitation allows the static analysis method to be quick and to provide good (but not perfect) support for backreferences and assertions (e.g. <code>\b</code>, <code>(?&lt;!ba+)</code>).</p>
+
+<a href="#false-negatives" id="false-negatives" style="color: inherit; text-decoration: none;">
+  <h3>False negatives</h3>
+</a>
+<p>The analysis method primarily searches for polynomial backtracking. Finds of exponential backtracking are only a byproduct. Because of this, not all causes of super-linear worst-case time complexity are found.</p>
+
+<a href="#false-positives" id="false-positives" style="color: inherit; text-decoration: none;">
+  <h3>False positives</h3>
+</a>
+<p>This library doesn&#39;t actually search for the whole tuple <em>(x,y,z)</em>; it only searches for <em>y</em> and assumes that adequate values for <em>x</em> and <em>z</em> can be found. A single-character approximation of the suffix <em>z</em> will be computed and accounted for but false positives are still possible.</p>
+
+<a href="#reports" id="reports" style="color: inherit; text-decoration: none;">
+  <h2>Reports</h2>
+</a>
+<p>There are 3 different types of reports that each indicate a different type of cause for the super-linear worst-case time complexity. All are explained in the documentation of their types.</p>
+
+<a href="#exponential-backtracking" id="exponential-backtracking" style="color: inherit; text-decoration: none;">
+  <h3>Exponential backtracking</h3>
+</a>
+<p>While most reports show polynomial backtracking, some report exponential backtracking. Exponential backtracking is a lot more dangerous and can easily be exploited for <a href="https://owasp.org/www-community/attacks/Regular_expression_Denial_of_Service_-_ReDoS">ReDoS attacks</a>.</p>
+<p>While other reports may be dismissed, <strong>all reports of exponential backtracking must be fixed</strong>.</p>
+<p>All reports with <code>exponential: true</code> report exponential backtracking.</p>
+</div></div><div class="col-4 col-menu menu-sticky-wrap menu-highlight"><nav class="tsd-navigation primary"><ul><li class="current"><a href="modules.html">Exports</a></li></ul></nav><nav class="tsd-navigation secondary menu-sticky"><ul><li class="tsd-kind-interface"><a href="interfaces/AnalysisOptions.html" class="tsd-kind-icon">Analysis<wbr/>Options</a></li><li class="tsd-kind-interface"><a href="interfaces/AnalysisResult.html" class="tsd-kind-icon">Analysis<wbr/>Result</a></li><li class="tsd-kind-interface"><a href="interfaces/Literal.html" class="tsd-kind-icon">Literal</a></li><li class="tsd-kind-interface"><a href="interfaces/MoveReport.html" class="tsd-kind-icon">Move<wbr/>Report</a></li><li class="tsd-kind-interface"><a href="interfaces/ParsedLiteral.html" class="tsd-kind-icon">Parsed<wbr/>Literal</a></li><li class="tsd-kind-interface"><a href="interfaces/ReportBase.html" class="tsd-kind-icon">Report<wbr/>Base</a></li><li class="tsd-kind-interface"><a href="interfaces/SelfReport.html" class="tsd-kind-icon">Self<wbr/>Report</a></li><li class="tsd-kind-interface"><a href="interfaces/TradeReport.html" class="tsd-kind-icon">Trade<wbr/>Report</a></li><li class="tsd-kind-type-alias"><a href="modules.html#Report" class="tsd-kind-icon">Report</a></li><li class="tsd-kind-function"><a href="modules.html#analyse" class="tsd-kind-icon">analyse</a></li></ul></nav></div></div></div><footer class=""><div class="container"><h2>Legend</h2><div class="tsd-legend-group"><ul class="tsd-legend"><li class="tsd-kind-property tsd-parent-kind-interface"><span class="tsd-kind-icon">Property</span></li><li class="tsd-kind-method tsd-parent-kind-interface"><span class="tsd-kind-icon">Method</span></li></ul></div><h2>Settings</h2><p>Theme <select id="theme"><option value="os">OS</option><option value="light">Light</option><option value="dark">Dark</option></select></p></div></footer><div class="overlay"></div><script src="assets/main.js"></script></body></html>
