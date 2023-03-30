@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.2.0 (2023-03-30)
+
+### Breaking
+
+- Changed from `regexpp` to `@eslint-community/regexpp`.
+- Updated refa and regexp-ast-analysis.
+
+
 ## 0.1.6 (2021-07-15)
 
 ### Changed
