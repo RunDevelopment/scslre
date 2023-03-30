@@ -1,6 +1,6 @@
 import { CharSet, Words } from "refa";
 import { Chars, FollowOperations, followPaths, getClosestAncestor, hasSomeAncestor } from "regexp-ast-analysis";
-import { AST, RegExpParser, visitRegExpAST } from "regexpp";
+import { AST, RegExpParser, visitRegExpAST } from "@eslint-community/regexpp";
 import {
 	assertConsumedRepeatedChar,
 	canReachChild,

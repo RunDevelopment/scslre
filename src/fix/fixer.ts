@@ -1,5 +1,5 @@
 import type { Literal, ParsedLiteral } from "..";
-import { AST } from "regexpp";
+import { AST } from "@eslint-community/regexpp";
 
 export class Fixer {
 	readonly source: string;
