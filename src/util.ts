@@ -3,11 +3,15 @@ import { CharSet, JS } from "refa";
 
 export function assertNever(value: never, message?: string): never {
 	const error = new Error(message);
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
 	(error as any).data = value;
 	throw error;
 }
 
-export function charToLiteral(char: CharSet, flags?: JS.Flags): Literal {
+export function charToLiteral(char: CharSet, flags?: JS.UncheckedFlags): Literal {
+	if (flags !== undefined && !JS.isFlags(flags)) {
+		throw new Error("Invalid flags");
+	}
 	return JS.toLiteral({ type: "CharacterClass", characters: char }, { flags });
 }
 
