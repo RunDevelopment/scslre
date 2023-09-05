@@ -1,6 +1,6 @@
 import type { Literal, ParsedLiteral, TradeReport } from "..";
 import { AST } from "@eslint-community/regexpp";
-import { isSingleCharacter, SingleCharacter } from "../ast-util";
+import { isCharacterElement, CharacterElement, CharacterQuantifier, isCharacterQuantifier } from "../ast-util";
 import { charToLiteral } from "../util";
 import { Fixer } from "./fixer";
 import { containsCapturingGroup, equalElements, quantToString, withConstQuantifier, withDirection } from "./util";
@@ -10,7 +10,7 @@ import {
 	getMatchingDirection,
 	isPotentiallyZeroLength,
 	MatchingDirection,
-	toCharSet,
+	toUnicodeSet,
 } from "regexp-ast-analysis";
 
 export function fixTrade(literal: Readonly<ParsedLiteral>, report: Readonly<TradeReport>): Literal | void {
@@ -44,7 +44,7 @@ export function fixTrade(literal: Readonly<ParsedLiteral>, report: Readonly<Trad
 				const single = between[0];
 				if (single.type === "Quantifier") {
 					return quantifierInBetween(literal, fixer, direction, startQuant, endQuant, single);
-				} else if (isSingleCharacter(single)) {
+				} else if (isCharacterElement(single)) {
 					return characterInBetween(literal, fixer, direction, startQuant, endQuant, single);
 				}
 			}
@@ -74,20 +74,28 @@ function neighboringQuantifiers(
 		);
 	}
 
-	if (isSingleCharacter(startQuant.element) && isSingleCharacter(endQuant.element)) {
-		const { which, replacement } = neighboringSingleCharQuantifiers(literal.flags, d, startQuant, endQuant);
-		return fixer.replace(which, replacement);
+	if (isCharacterQuantifier(startQuant) && isCharacterQuantifier(endQuant)) {
+		const result = neighboringSingleCharQuantifiers(literal.flags, d, startQuant, endQuant);
+		if (result) {
+			return fixer.replace(result.which, result.replacement);
+		}
 	}
 }
 
 function neighboringSingleCharQuantifiers(
 	flags: AST.Flags,
 	d: MatchingDirection,
-	startQuant: AST.Quantifier,
-	endQuant: AST.Quantifier
-): { which: AST.Quantifier; replacement: string } {
-	const startChar = toCharSet(startQuant.element as SingleCharacter, flags);
-	const endChar = toCharSet(endQuant.element as SingleCharacter, flags);
+	startQuant: CharacterQuantifier,
+	endQuant: CharacterQuantifier
+): { which: AST.Quantifier; replacement: string } | undefined {
+	const startUnicode = toUnicodeSet(startQuant.element, flags);
+	const endUnicode = toUnicodeSet(endQuant.element, flags);
+	if (!startUnicode.accept.isEmpty || !endUnicode.accept.isEmpty) {
+		return undefined;
+	}
+
+	const startChar = startUnicode.chars;
+	const endChar = endUnicode.chars;
 
 	let reduceToMin: AST.Quantifier | undefined;
 	if (startChar.isSubsetOf(endChar)) {
@@ -144,9 +152,9 @@ function quantifierInBetween(
 	if (
 		betweenQuant.max === 0 ||
 		betweenQuant.min !== 0 ||
-		isPotentiallyZeroLength(startQuant.element) ||
-		isPotentiallyZeroLength(endQuant.element) ||
-		isPotentiallyZeroLength(betweenQuant.element)
+		isPotentiallyZeroLength(startQuant.element, literal.flags) ||
+		isPotentiallyZeroLength(endQuant.element, literal.flags) ||
+		isPotentiallyZeroLength(betweenQuant.element, literal.flags)
 	) {
 		return;
 	}
@@ -215,40 +223,43 @@ function quantifierInBetween(
 			}
 		}
 
-		if (isSingleCharacter(startQuant.element) && isSingleCharacter(endQuant.element)) {
+		if (isCharacterQuantifier(startQuant) && isCharacterQuantifier(endQuant)) {
 			// e.g. /[ax]+b*[ay]*/ == /[ax]+b+[ay]*|[ax]+[ay]*/
 
-			const { which, replacement } = neighboringSingleCharQuantifiers(literal.flags, d, startQuant, endQuant);
+			const result = neighboringSingleCharQuantifiers(literal.flags, d, startQuant, endQuant);
 
-			if (replacement === "") {
-				if (which === startQuant) {
-					// e.g. /a*b*[ay]*/ == /a*b+[ay]*|[ay]*/ == /(?:a*b+)?[ay]*/
-					return fixer.replace(
-						[startQuant, betweenQuant],
-						"(?:" + withDirection(d, [startQuant.raw, betweenWithMinOne()]) + ")?" + BETWEEN_LAZY_MOD
-					);
+			if (result) {
+				const { which, replacement } = result;
+				if (replacement === "") {
+					if (which === startQuant) {
+						// e.g. /a*b*[ay]*/ == /a*b+[ay]*|[ay]*/ == /(?:a*b+)?[ay]*/
+						return fixer.replace(
+							[startQuant, betweenQuant],
+							"(?:" + withDirection(d, [startQuant.raw, betweenWithMinOne()]) + ")?" + BETWEEN_LAZY_MOD
+						);
+					} else {
+						// e.g. /[ax]+b*a*/ == /[ax]+b+a*|[ax]+/ == /[ax]+(?:b+a*)?/
+						return fixer.replace(
+							[betweenQuant, endQuant],
+							"(?:" + withDirection(d, [betweenWithMinOne(), endQuant.raw]) + ")?" + BETWEEN_LAZY_MOD
+						);
+					}
 				} else {
-					// e.g. /[ax]+b*a*/ == /[ax]+b+a*|[ax]+/ == /[ax]+(?:b+a*)?/
-					return fixer.replace(
-						[betweenQuant, endQuant],
-						"(?:" + withDirection(d, [betweenWithMinOne(), endQuant.raw]) + ")?" + BETWEEN_LAZY_MOD
-					);
-				}
-			} else {
-				const alternatives: string[] = [
-					// [ax]+b+[ay]*
-					withDirection(d, [startQuant.raw, betweenWithMinOne(), endQuant.raw]),
-					// [ax]+[ay]*
-					withDirection(d, [
-						startQuant === which ? replacement : startQuant.raw,
-						endQuant === which ? replacement : endQuant.raw,
-					]),
-				];
-				if (!betweenQuant.greedy) {
-					alternatives.reverse();
-				}
+					const alternatives: string[] = [
+						// [ax]+b+[ay]*
+						withDirection(d, [startQuant.raw, betweenWithMinOne(), endQuant.raw]),
+						// [ax]+[ay]*
+						withDirection(d, [
+							startQuant === which ? replacement : startQuant.raw,
+							endQuant === which ? replacement : endQuant.raw,
+						]),
+					];
+					if (!betweenQuant.greedy) {
+						alternatives.reverse();
+					}
 
-				return fixer.replace([startQuant, betweenQuant, endQuant], groupAlternatives(alternatives));
+					return fixer.replace([startQuant, betweenQuant, endQuant], groupAlternatives(alternatives));
+				}
 			}
 		}
 	}
@@ -260,7 +271,7 @@ function characterInBetween(
 	d: MatchingDirection,
 	startQuant: AST.Quantifier,
 	endQuant: AST.Quantifier,
-	between: SingleCharacter
+	between: CharacterElement
 ): Literal | void {
 	if (startQuant.element.raw === endQuant.element.raw && startQuant.element.raw === between.raw) {
 		// e.g. /a+aa*/
@@ -275,17 +286,19 @@ function characterInBetween(
 		);
 	}
 
-	if (
-		isSingleCharacter(startQuant.element) &&
-		isSingleCharacter(endQuant.element) &&
-		startQuant.greedy &&
-		endQuant.greedy
-	) {
+	if (isCharacterQuantifier(startQuant) && isCharacterQuantifier(endQuant) && startQuant.greedy && endQuant.greedy) {
 		// /[ax]*[ay][az]*/
 
-		const startChar = toCharSet(startQuant.element, literal.flags);
-		const endChar = toCharSet(endQuant.element, literal.flags);
-		const betweenChar = toCharSet(between, literal.flags);
+		const startUnicode = toUnicodeSet(startQuant.element, literal.flags);
+		const endUnicode = toUnicodeSet(endQuant.element, literal.flags);
+		const betweenUnicode = toUnicodeSet(between, literal.flags);
+		if (!startUnicode.accept.isEmpty || !endUnicode.accept.isEmpty || !betweenUnicode.accept.isEmpty) {
+			return;
+		}
+
+		const startChar = startUnicode.chars;
+		const endChar = endUnicode.chars;
+		const betweenChar = betweenUnicode.chars;
 
 		const concat: NoParent<Concatenation> = {
 			type: "Concatenation",
@@ -313,6 +326,10 @@ function characterInBetween(
 		};
 		if (d === "rtl") {
 			concat.elements.reverse();
+		}
+
+		if (!JS.isFlags(literal.flags)) {
+			throw new Error("Invalid flags");
 		}
 
 		const dfa = DFA.fromFA(NFA.fromRegex(concat, { maxCharacter: startChar.maximum }));

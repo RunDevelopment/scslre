@@ -1,6 +1,6 @@
-import { hasSomeDescendant, MatchingDirection, toCharSet } from "regexp-ast-analysis";
+import { hasSomeDescendant, MatchingDirection, toUnicodeSet } from "regexp-ast-analysis";
 import { AST } from "@eslint-community/regexpp";
-import { isSingleCharacter } from "../ast-util";
+import { isCharacterQuantifier } from "../ast-util";
 
 export interface Quant {
 	min: number;
@@ -38,8 +38,8 @@ export function equalElements(q1: AST.Quantifier, q2: AST.Quantifier, flags: AST
 		return true;
 	}
 
-	if (isSingleCharacter(q1.element) && isSingleCharacter(q2.element)) {
-		return toCharSet(q1.element, flags).equals(toCharSet(q2.element, flags));
+	if (isCharacterQuantifier(q1) && isCharacterQuantifier(q2)) {
+		return toUnicodeSet(q1.element, flags).equals(toUnicodeSet(q2.element, flags));
 	}
 
 	return false;

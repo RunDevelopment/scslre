@@ -1,4 +1,4 @@
-import { CharSet } from "refa";
+import { CharSet, JS } from "refa";
 import {
 	isStrictBackreference,
 	Chars,
@@ -7,22 +7,27 @@ import {
 	getFirstCharAfter,
 	isEmptyBackreference,
 	MatchingDirection,
-	toCharSet,
+	toUnicodeSet,
 } from "regexp-ast-analysis";
 import { AST } from "@eslint-community/regexpp";
 import { assertNever } from "./util";
 
-export type SingleCharacter = AST.Character | AST.CharacterClass | AST.CharacterSet;
-export function isSingleCharacter(node: AST.Node): node is SingleCharacter {
+export type CharacterElement = AST.Character | AST.CharacterClass | AST.CharacterSet | AST.ExpressionCharacterClass;
+export function isCharacterElement(node: AST.Element): node is CharacterElement {
 	switch (node.type) {
 		case "Character":
 		case "CharacterClass":
 		case "CharacterSet":
+		case "ExpressionCharacterClass":
 			return true;
 
 		default:
 			return false;
 	}
+}
+export type CharacterQuantifier = AST.Quantifier & { element: CharacterElement };
+export function isCharacterQuantifier(node: AST.Node): node is CharacterQuantifier {
+	return node.type === "Quantifier" && isCharacterElement(node.element);
 }
 
 /**
@@ -72,6 +77,12 @@ export function unionConsumedRepeatedChars(
 	iter: Iterable<ConsumedRepeatedChar>,
 	flags: AST.Flags
 ): ConsumedRepeatedChar {
+	return unionConsumedRepeatedCharsWithoutFlags(iter, Chars.empty(flags));
+}
+function unionConsumedRepeatedCharsWithoutFlags(
+	iter: Iterable<ConsumedRepeatedChar>,
+	empty: CharSet
+): ConsumedRepeatedChar {
 	if (Array.isArray(iter) && iter.length === 1) {
 		return iter[0];
 	}
@@ -80,8 +91,8 @@ export function unionConsumedRepeatedChars(
 	 *
 	 * (a|(?=c))|(b|(?=d)) == a|b|(?=c)|(?=d) == [ab]|(?=[cd])
 	 */
-	let consume = Chars.empty(flags);
-	let assert = Chars.empty(flags);
+	let consume = empty;
+	let assert = empty;
 	for (const other of iter) {
 		consume = consume.union(other.consume);
 		assert = assert.union(other.assert);
@@ -97,6 +108,35 @@ export function assertConsumedRepeatedChar(char: ConsumedRepeatedChar): Consumed
 	 */
 	return { consume: CharSet.empty(char.consume.maximum), assert: char.consume.union(char.assert) };
 }
+
+function unicodeSetToConsumedRepeatedChar(unicode: JS.UnicodeSet): ConsumedRepeatedChar {
+	const empty = CharSet.empty(unicode.chars.maximum);
+	const all = CharSet.all(unicode.chars.maximum);
+
+	const forSingleChar: ConsumedRepeatedChar = { consume: unicode.chars, assert: empty };
+	if (unicode.isEmpty || unicode.accept.isEmpty) {
+		// simple case where we only have to worry about a single char
+		return forSingleChar;
+	}
+
+	return unionConsumedRepeatedCharsWithoutFlags(
+		[
+			forSingleChar,
+			...unicode.accept.wordSets.map((wordSet): ConsumedRepeatedChar => {
+				if (wordSet.length === 0) {
+					return { consume: empty, assert: all };
+				}
+				let consume = wordSet[0];
+				for (let i = 1; i < wordSet.length; i++) {
+					consume = consume.intersect(wordSet[i]);
+				}
+				return { consume, assert: empty };
+			}),
+		],
+		CharSet.empty(unicode.chars.maximum)
+	);
+}
+
 export function getConsumedRepeatedChar(node: AST.Node | AST.Alternative[], flags: AST.Flags): ConsumedRepeatedChar {
 	if (Array.isArray(node)) {
 		return unionConsumedRepeatedChars(
@@ -164,7 +204,7 @@ export function getConsumedRepeatedChar(node: AST.Node | AST.Alternative[], flag
 					}
 				}
 			}
-			throw assertNever(node);
+			return assertNever(node);
 		}
 		case "CapturingGroup":
 		case "Group":
@@ -173,8 +213,13 @@ export function getConsumedRepeatedChar(node: AST.Node | AST.Alternative[], flag
 		}
 		case "Character":
 		case "CharacterClass":
-		case "CharacterSet": {
-			return { consume: toCharSet(node, flags), assert: Chars.empty(flags) };
+		case "CharacterSet":
+		case "ExpressionCharacterClass":
+		case "ClassIntersection":
+		case "ClassSubtraction":
+		case "ClassStringDisjunction":
+		case "StringAlternative": {
+			return unicodeSetToConsumedRepeatedChar(toUnicodeSet(node, flags));
 		}
 		case "Quantifier": {
 			if (node.max === 0) {
@@ -189,7 +234,7 @@ export function getConsumedRepeatedChar(node: AST.Node | AST.Alternative[], flag
 			return getConsumedRepeatedChar(node.pattern, flags);
 		}
 		case "Backreference": {
-			if (isEmptyBackreference(node)) {
+			if (isEmptyBackreference(node, flags)) {
 				return { consume: Chars.empty(flags), assert: Chars.all(flags) };
 			} else {
 				const char = getConsumedRepeatedChar(node.resolved, flags);
@@ -258,7 +303,8 @@ export function canReachChild(
 					case "Backreference":
 					case "Character":
 					case "CharacterClass":
-					case "CharacterSet": {
+					case "CharacterSet":
+					case "ExpressionCharacterClass": {
 						const elementChar = getConsumedRepeatedChar(element, flags);
 						const combinedChar = elementChar.consume.union(elementChar.assert);
 						if (repeatedChar.isSubsetOf(combinedChar)) {

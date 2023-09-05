@@ -298,6 +298,7 @@ export function analyse(
 				case "Character":
 				case "CharacterClass":
 				case "CharacterSet":
+				case "ExpressionCharacterClass":
 					return concatConsumedRepeatedChars([state, getCRC(element)], flags);
 
 				case "CapturingGroup":
