@@ -53,7 +53,7 @@
   "dependencies": {
     "@eslint-community/regexpp": "^4.8.0",
     "refa": "^0.12.0",
-    "regexp-ast-analysis": "file:../regexp-ast-analysis"
+    "regexp-ast-analysis": "^0.7.0"
   },
   "files": [
     "index.js",
