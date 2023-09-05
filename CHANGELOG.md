@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.3.0 (2023-09-05)
+
+### Breaking
+
+- Updated `refa`, `regexp-ast-analysis`.
+- Drop support for NodeJS v12.
+
+### Added
+
+- Added support for the `v` flag.
+
+
 ## 0.2.0 (2023-03-30)
 
 ### Breaking
