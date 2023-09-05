@@ -313,6 +313,35 @@ export const cases: TestCase[] = [
 		],
 	},
 	{
+		literal: { source: /\ba+a+\b/.source, flags: "v" },
+		expected: [
+			{
+				type: "Trade",
+				char: /a/u,
+				expo: false,
+				fixed: { source: /\ba{2,}\b/.source, flags: "v" },
+				desc: String.raw`
+/\ba+a+\b/v
+   ^~[start]
+     ^~[end]`,
+			},
+		],
+	},
+	{
+		literal: { source: String.raw`\b[a\q{foo|bar}]+a+\b`, flags: "v" },
+		expected: [
+			{
+				type: "Trade",
+				char: /a/u,
+				expo: false,
+				desc: String.raw`
+/\b[a\q{foo|bar}]+a+\b/v
+   ^~~~~~~~~~~~~~~[start]
+                  ^~[end]`,
+			},
+		],
+	},
+	{
 		literal: /\ba+a+/,
 		options: { assumeRejectingSuffix: true },
 		expected: [

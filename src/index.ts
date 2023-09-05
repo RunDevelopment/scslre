@@ -601,7 +601,7 @@ function parse(input: Readonly<Literal> | Readonly<ParsedLiteral>): Readonly<Par
 	if ("source" in input) {
 		// parse
 		const flags = PARSER.parseFlags(input.flags);
-		const pattern = PARSER.parsePattern(input.source, undefined, undefined, flags.unicode);
+		const pattern = PARSER.parsePattern(input.source, undefined, undefined, flags);
 		return { pattern, flags };
 	} else {
 		// already parsed
